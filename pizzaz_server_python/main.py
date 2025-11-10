@@ -12,6 +12,7 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import lru_cache
+import json
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -32,6 +33,11 @@ class PizzazWidget:
 
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+ECOMMERCE_SAMPLE_DATA_PATH = (
+    Path(__file__).resolve().parent.parent
+    / "ecommerce_server_python"
+    / "sample_data.json"
+)
 
 
 @lru_cache(maxsize=None)
@@ -48,6 +54,24 @@ def _load_widget_html(component_name: str) -> str:
         f'Widget HTML for "{component_name}" not found in {ASSETS_DIR}. '
         "Run `pnpm run build` to generate the assets before starting the server."
     )
+
+
+@lru_cache(maxsize=1)
+def _load_ecommerce_cart_items() -> List[Dict[str, Any]]:
+    if not ECOMMERCE_SAMPLE_DATA_PATH.exists():
+        return []
+
+    try:
+        raw = json.loads(ECOMMERCE_SAMPLE_DATA_PATH.read_text(encoding="utf8"))
+    except json.JSONDecodeError:
+        return []
+
+    items: List[Dict[str, Any]] = []
+    for entry in raw.get("products", []):
+        if isinstance(entry, dict):
+            items.append(entry)
+
+    return items
 
 
 widgets: List[PizzazWidget] = [
@@ -95,6 +119,15 @@ widgets: List[PizzazWidget] = [
         invoked="Shop opened",
         html=_load_widget_html("pizzaz-shop"),
         response_text="Rendered the Pizzaz shop!",
+    ),
+    PizzazWidget(
+        identifier="pizzaz-ecommerce",
+        title="Show Ecommerce Catalog",
+        template_uri="ui://widget/ecommerce.html",
+        invoking="Loading the ecommerce catalog",
+        invoked="Ecommerce catalog ready",
+        html=_load_widget_html("ecommerce"),
+        response_text="Rendered the ecommerce catalog!",
     ),
 ]
 
@@ -164,22 +197,35 @@ def _tool_invocation_meta(widget: PizzazWidget) -> Dict[str, Any]:
 
 @mcp._mcp_server.list_tools()
 async def _list_tools() -> List[types.Tool]:
-    return [
-        types.Tool(
-            name=widget.identifier,
-            title=widget.title,
-            description=widget.title,
-            inputSchema=deepcopy(TOOL_INPUT_SCHEMA),
-            _meta=_tool_meta(widget),
-            # To disable the approval prompt for the tools
-            annotations={
-                "destructiveHint": False,
-                "openWorldHint": False,
-                "readOnlyHint": True,
-            },
+    tools: List[types.Tool] = []
+    for widget in widgets:
+        input_schema: Dict[str, Any]
+        if widget.identifier == "pizzaz-ecommerce":
+            input_schema = {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": False,
+            }
+        else:
+            input_schema = deepcopy(TOOL_INPUT_SCHEMA)
+
+        tools.append(
+            types.Tool(
+                name=widget.identifier,
+                title=widget.title,
+                description=widget.title,
+                inputSchema=input_schema,
+                _meta=_tool_meta(widget),
+                # To disable the approval prompt for the tools
+                annotations={
+                    "destructiveHint": False,
+                    "openWorldHint": False,
+                    "readOnlyHint": True,
+                },
+            )
         )
-        for widget in widgets
-    ]
+
+    return tools
 
 
 @mcp._mcp_server.list_resources()
@@ -246,6 +292,24 @@ async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
                     )
                 ],
                 isError=True,
+            )
+        )
+
+    if widget.identifier == "pizzaz-ecommerce":
+        meta = _tool_invocation_meta(widget)
+        cart_items = [deepcopy(item) for item in _load_ecommerce_cart_items()]
+        structured_content: Dict[str, Any] = {"cartItems": cart_items, "searchTerm": ""}
+
+        return types.ServerResult(
+            types.CallToolResult(
+                content=[
+                    types.TextContent(
+                        type="text",
+                        text=widget.response_text,
+                    )
+                ],
+                structuredContent=structured_content,
+                _meta=meta,
             )
         )
 
