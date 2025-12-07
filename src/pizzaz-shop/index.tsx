@@ -155,14 +155,15 @@ function App() {
     const nextState = { ...baseState, items: nextItems };
 
     const serialized = JSON.stringify(nextState);
-    if (serialized === lastMergedStateRef.current) {
+    const shouldForceSyncFromResponse = widgetState == null && toolOutput != null;
+    if (!shouldForceSyncFromResponse && serialized === lastMergedStateRef.current) {
       console.log("merge effect skipped (no change)");
       return;
     }
 
     lastMergedStateRef.current = serialized;
 
-    if (!widgetStateEqual(nextState, cartState)) {
+    if (shouldForceSyncFromResponse || !widgetStateEqual(nextState, cartState)) {
       console.log("setting cartState from merge", nextState);
       setCartState(nextState);
     } else {
