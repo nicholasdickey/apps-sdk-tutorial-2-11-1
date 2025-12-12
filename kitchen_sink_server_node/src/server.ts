@@ -91,7 +91,6 @@ function toolDescriptorMeta() {
     "openai/toolInvocation/invoking": "Preparing the kitchen sink widget",
     "openai/toolInvocation/invoked": "Widget rendered",
     "openai/widgetAccessible": true,
-    "openai/resultCanProduceWidget": true,
   } as const;
 }
 
@@ -107,7 +106,10 @@ const widgetHtml = readWidgetHtml();
 const toolInputSchema = {
   type: "object",
   properties: {
-    message: { type: "string", description: "Message to render in the widget." },
+    message: {
+      type: "string",
+      description: "Message to render in the widget.",
+    },
     accentColor: {
       type: "string",
       description: "Optional accent color (hex).",

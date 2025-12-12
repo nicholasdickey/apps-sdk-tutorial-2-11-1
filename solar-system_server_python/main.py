@@ -123,7 +123,6 @@ def _tool_meta(widget: SolarWidget) -> Dict[str, Any]:
         "openai/toolInvocation/invoking": widget.invoking,
         "openai/toolInvocation/invoked": widget.invoked,
         "openai/widgetAccessible": True,
-        "openai/resultCanProduceWidget": True,
         "annotations": {
             "destructiveHint": False,
             "openWorldHint": False,
@@ -273,7 +272,6 @@ async def _call_tool_request(req: types.CallToolRequest) -> types.ServerResult:
         "openai/toolInvocation/invoking": WIDGET.invoking,
         "openai/toolInvocation/invoked": WIDGET.invoked,
         "openai/widgetAccessible": True,
-        "openai/resultCanProduceWidget": True,
     }
 
     description = PLANET_DESCRIPTIONS.get(planet, "")
