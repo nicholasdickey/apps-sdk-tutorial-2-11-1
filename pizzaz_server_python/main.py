@@ -151,7 +151,6 @@ def _tool_meta(widget: PizzazWidget) -> Dict[str, Any]:
         "openai/toolInvocation/invoking": widget.invoking,
         "openai/toolInvocation/invoked": widget.invoked,
         "openai/widgetAccessible": True,
-        "openai/resultCanProduceWidget": True,
     }
 
 

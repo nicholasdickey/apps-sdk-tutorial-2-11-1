@@ -80,7 +80,6 @@ function widgetDescriptorMeta(widget: PizzazWidget) {
     "openai/toolInvocation/invoking": widget.invoking,
     "openai/toolInvocation/invoked": widget.invoked,
     "openai/widgetAccessible": true,
-    "openai/resultCanProduceWidget": true,
   } as const;
 }
 

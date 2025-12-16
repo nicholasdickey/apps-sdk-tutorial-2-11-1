@@ -61,7 +61,6 @@ def tool_meta(invocation: str):
         "openai/toolInvocation/invoking": "Preparing the kitchen sink widget",
         "openai/toolInvocation/invoked": "Widget rendered",
         "openai/widgetAccessible": True,
-        "openai/resultCanProduceWidget": True,
         "invocation": invocation,
     }
 
