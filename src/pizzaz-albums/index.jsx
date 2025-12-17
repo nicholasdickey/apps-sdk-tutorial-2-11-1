@@ -80,9 +80,13 @@ function AlbumsCarousel({ onSelect }) {
         />
       </div>
       {canPrev && (
-        <button
+        <Button
           aria-label="Previous"
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 inline-flex items-center justify-center h-8 w-8 rounded-full bg-white text-black shadow-lg ring ring-black/5 hover:bg-white"
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-10 shadow-lg"
+          color="secondary"
+          size="sm"
+          variant="soft"
+          uniform
           onClick={() => emblaApi && emblaApi.scrollPrev()}
           type="button"
         >
@@ -91,12 +95,16 @@ function AlbumsCarousel({ onSelect }) {
             className="h-4.5 w-4.5"
             aria-hidden="true"
           />
-        </button>
+        </Button>
       )}
       {canNext && (
-        <button
+        <Button
           aria-label="Next"
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 inline-flex items-center justify-center h-8 w-8 rounded-full bg-white text-black shadow-lg ring ring-black/5 hover:bg-white"
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-10 shadow-lg"
+          color="secondary"
+          size="sm"
+          variant="soft"
+          uniform
           onClick={() => emblaApi && emblaApi.scrollNext()}
           type="button"
         >
@@ -105,7 +113,7 @@ function AlbumsCarousel({ onSelect }) {
             className="h-4.5 w-4.5"
             aria-hidden="true"
           />
-        </button>
+        </Button>
       )}
     </div>
   );
