@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any, Dict, List
 from uuid import uuid4
 
 import mcp.types as types
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 TOOL_NAME = "add_to_cart"
@@ -35,6 +37,24 @@ def _load_widget_html() -> str:
 
 
 SHOPPING_CART_HTML = _load_widget_html()
+
+
+def _split_env_list(value: str | None) -> List[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _transport_security_settings() -> TransportSecuritySettings:
+    allowed_hosts = _split_env_list(os.getenv("MCP_ALLOWED_HOSTS"))
+    allowed_origins = _split_env_list(os.getenv("MCP_ALLOWED_ORIGINS"))
+    if not allowed_hosts and not allowed_origins:
+        return TransportSecuritySettings(enable_dns_rebinding_protection=False)
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=allowed_hosts,
+        allowed_origins=allowed_origins,
+    )
 
 
 class CartItem(BaseModel):
@@ -73,6 +93,7 @@ carts: Dict[str, List[Dict[str, Any]]] = {}
 mcp = FastMCP(
     name="ecommerce-python",
     stateless_http=True,
+    transport_security=_transport_security_settings(),
 )
 
 
