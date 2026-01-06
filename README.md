@@ -198,6 +198,14 @@ You will get a public URL that you can use to add your local server to ChatGPT i
 
 For example: `https://<custom_endpoint>.ngrok-free.app/mcp`
 
+> [!IMPORTANT]
+> The Python MCP SDK enforces DNS rebinding protection. When tunneling (for example via ngrok), allow your tunnel host before starting any Python server:
+>
+> ```bash
+> export MCP_ALLOWED_HOSTS="<custom_endpoint>.ngrok-free.app"
+> export MCP_ALLOWED_ORIGINS="https://<custom_endpoint>.ngrok-free.app"
+> ```
+
 Once you add a connector, you can use it in ChatGPT conversations.
 
 You can add your app to the conversation context by selecting it in the "More" options.

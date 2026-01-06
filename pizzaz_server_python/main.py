@@ -9,6 +9,7 @@ handlers into an HTTP/SSE stack so you can run the server with uvicorn on port
 
 from __future__ import annotations
 
+import os
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import lru_cache
@@ -17,6 +18,7 @@ from typing import Any, Dict, List
 
 import mcp.types as types
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 
@@ -122,9 +124,28 @@ class PizzaInput(BaseModel):
     model_config = ConfigDict(populate_by_name=True, extra="forbid")
 
 
+def _split_env_list(value: str | None) -> List[str]:
+    if not value:
+        return []
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _transport_security_settings() -> TransportSecuritySettings:
+    allowed_hosts = _split_env_list(os.getenv("MCP_ALLOWED_HOSTS"))
+    allowed_origins = _split_env_list(os.getenv("MCP_ALLOWED_ORIGINS"))
+    if not allowed_hosts and not allowed_origins:
+        return TransportSecuritySettings(enable_dns_rebinding_protection=False)
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=allowed_hosts,
+        allowed_origins=allowed_origins,
+    )
+
+
 mcp = FastMCP(
     name="pizzaz-python",
     stateless_http=True,
+    transport_security=_transport_security_settings(),
 )
 
 
