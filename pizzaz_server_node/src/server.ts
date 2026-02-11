@@ -125,14 +125,28 @@ function getWidgetOrigin(): string {
 }
 const WIDGET_ORIGIN = getWidgetOrigin();
 
+// Domains for fonts, images, map tiles. ChatGPT's CSP blocks external sources;
+// resource_domains allows these for font-src and img-src.
+const RESOURCE_DOMAINS = [
+  WIDGET_ORIGIN,
+  "https://persistent.oaistatic.com", // Pizzaz demo images (albums, markers)
+  "https://api.mapbox.com", // Map tile and style assets
+  "https://fonts.googleapis.com",
+  "https://fonts.gstatic.com",
+];
+const CONNECT_DOMAINS = [
+  WIDGET_ORIGIN,
+  "https://api.mapbox.com", // Mapbox API (often ignored by ChatGPT - known limitation)
+];
+
 const WIDGET_CSP_DOMAINS = {
   "openai/widgetCSP": {
-    connect_domains: [WIDGET_ORIGIN],
-    resource_domains: [WIDGET_ORIGIN],
+    connect_domains: CONNECT_DOMAINS,
+    resource_domains: RESOURCE_DOMAINS,
   },
   "ui.csp": {
-    connectDomains: [WIDGET_ORIGIN],
-    resourceDomains: [WIDGET_ORIGIN],
+    connectDomains: CONNECT_DOMAINS,
+    resourceDomains: RESOURCE_DOMAINS,
   },
   "ui.domain": WIDGET_ORIGIN,
 };
