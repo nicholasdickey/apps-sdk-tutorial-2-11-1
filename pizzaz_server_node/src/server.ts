@@ -74,12 +74,33 @@ function readWidgetHtml(componentName: string): string {
   return htmlContents;
 }
 
+function getWidgetOrigin(): string {
+  const raw =
+    process.env.WIDGET_ORIGIN ??
+    process.env.RENDER_EXTERNAL_URL ??
+    "https://pizzaz-mcp-eiil.onrender.com";
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return raw.replace(/\/+$/, "");
+  }
+}
+const WIDGET_ORIGIN = getWidgetOrigin();
+
+const WIDGET_CSP_DOMAINS = {
+  "openai/widgetCSP": {
+    connect_domains: [WIDGET_ORIGIN],
+    resource_domains: [WIDGET_ORIGIN],
+  },
+};
+
 function widgetDescriptorMeta(widget: PizzazWidget) {
   return {
     "openai/outputTemplate": widget.templateUri,
     "openai/toolInvocation/invoking": widget.invoking,
     "openai/toolInvocation/invoked": widget.invoked,
     "openai/widgetAccessible": true,
+    ...WIDGET_CSP_DOMAINS,
   } as const;
 }
 
@@ -480,4 +501,5 @@ httpServer.listen(port, () => {
   console.log(
     `  Message post endpoint: POST http://localhost:${port}${postPath}?sessionId=...`
   );
+  console.log(`  Widget CSP origin: ${WIDGET_ORIGIN}`);
 });
