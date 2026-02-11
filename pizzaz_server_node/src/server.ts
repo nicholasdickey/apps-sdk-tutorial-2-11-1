@@ -389,6 +389,10 @@ function serveStaticFile(
 
   const ext = path.extname(filePath);
   const mimeType = MIME_TYPES[ext] ?? "application/octet-stream";
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, HEAD, OPTIONS");
+  res.setHeader("Access-Control-Max-Age", "86400");
+  res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
   res.setHeader("Content-Type", mimeType);
   res.setHeader("Cache-Control", "public, max-age=3600");
   res.writeHead(200);
@@ -467,14 +471,12 @@ const httpServer = createServer(
 
     const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
 
-    if (
-      req.method === "OPTIONS" &&
-      (url.pathname === ssePath || url.pathname === postPath)
-    ) {
+    if (req.method === "OPTIONS") {
       res.writeHead(204, {
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Methods": "GET, POST, HEAD, OPTIONS",
         "Access-Control-Allow-Headers": "content-type",
+        "Access-Control-Max-Age": "86400",
       });
       res.end();
       return;
