@@ -288,6 +288,77 @@ const sessions = new Map<string, SessionRecord>();
 const ssePath = "/mcp";
 const postPath = "/mcp/messages";
 
+const MIME_TYPES: Record<string, string> = {
+  ".html": "text/html",
+  ".js": "application/javascript",
+  ".css": "text/css",
+  ".json": "application/json",
+  ".ico": "image/x-icon",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".svg": "image/svg+xml",
+  ".woff": "font/woff",
+  ".woff2": "font/woff2",
+};
+
+function serveStaticFile(
+  url: URL,
+  res: ServerResponse,
+  assetsDir: string
+): boolean {
+  const pathname = url.pathname;
+  if (pathname.includes("..") || pathname.startsWith("/mcp")) {
+    return false;
+  }
+
+  if (pathname === "/" || pathname === "" || pathname === "/index.html") {
+    const indexPath = path.join(assetsDir, "index.html");
+    if (!fs.existsSync(indexPath)) {
+      const pizzazPages = [
+        "pizzaz",
+        "pizzaz-carousel",
+        "pizzaz-list",
+        "pizzaz-albums",
+        "pizzaz-shop",
+      ]
+        .filter((name) => fs.existsSync(path.join(assetsDir, `${name}.html`)))
+        .map(
+          (name) =>
+            `<li><a href="/${name}.html">${name}</a></li>`
+        )
+        .join("\n");
+      const html = `<!doctype html>
+<html><head><meta charset="utf-8"><title>Pizzaz MCP</title></head>
+<body style="font-family:system-ui;margin:2rem">
+<h1>Pizzaz MCP Server</h1>
+<p>Model Context Protocol server with OpenAI Apps SDK widgets.</p>
+<p><strong>MCP endpoint:</strong> <code>GET /mcp</code> (SSE), <code>POST /mcp/messages</code></p>
+<h2>Widget previews</h2>
+<ul>${pizzazPages || "<li>No widgets built. Run pnpm run build first.</li>"}</ul>
+</body></html>`;
+      res.setHeader("Content-Type", "text/html");
+      res.writeHead(200);
+      res.end(html);
+      return true;
+    }
+  }
+
+  const safePath = pathname === "/" || pathname === "" ? "index.html" : pathname.replace(/^\//, "");
+  const filePath = path.join(assetsDir, safePath);
+
+  if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    return false;
+  }
+
+  const ext = path.extname(filePath);
+  const mimeType = MIME_TYPES[ext] ?? "application/octet-stream";
+  res.setHeader("Content-Type", mimeType);
+  res.setHeader("Cache-Control", "public, max-age=3600");
+  res.writeHead(200);
+  fs.createReadStream(filePath).pipe(res);
+  return true;
+}
+
 async function handleSseRequest(res: ServerResponse) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   const server = createPizzazServer();
@@ -380,6 +451,18 @@ const httpServer = createServer(
     if (req.method === "POST" && url.pathname === postPath) {
       await handlePostMessage(req, res, url);
       return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/health") {
+      res.writeHead(200);
+      res.end("ok");
+      return;
+    }
+
+    if (req.method === "GET") {
+      if (serveStaticFile(url, res, ASSETS_DIR)) {
+        return;
+      }
     }
 
     res.writeHead(404).end("Not Found");
