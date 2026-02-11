@@ -100,6 +100,7 @@ function widgetDescriptorMeta(widget: PizzazWidget) {
     "openai/toolInvocation/invoking": widget.invoking,
     "openai/toolInvocation/invoked": widget.invoked,
     "openai/widgetAccessible": true,
+    "openai/widgetDomain": WIDGET_ORIGIN,
     ...WIDGET_CSP_DOMAINS,
   } as const;
 }
@@ -501,5 +502,5 @@ httpServer.listen(port, () => {
   console.log(
     `  Message post endpoint: POST http://localhost:${port}${postPath}?sessionId=...`
   );
-  console.log(`  Widget CSP origin: ${WIDGET_ORIGIN}`);
+  console.log(`  Widget domain: ${WIDGET_ORIGIN}`);
 });
