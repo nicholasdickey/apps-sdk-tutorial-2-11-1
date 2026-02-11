@@ -74,12 +74,42 @@ function readWidgetHtml(componentName: string): string {
   return htmlContents;
 }
 
-/** Rewrite relative asset URLs to absolute URLs so the iframe can load from our domain. */
-function rewriteHtmlAssetUrls(html: string, baseOrigin: string): string {
-  const origin = baseOrigin.replace(/\/+$/, "");
-  return html
-    .replace(/\ssrc="\/([^"]+)"/g, ` src="${origin}/$1"`)
-    .replace(/\shref="\/([^"]+)"/g, ` href="${origin}/$1"`);
+/**
+ * Inline JS and CSS into the HTML to bypass ChatGPT's sandbox proxy (which returns 404 for asset fetches).
+ * Replaces <script src="..."> with <script>...</script> and <link href="..."> with <style>...</style>.
+ */
+function inlineHtmlAssets(html: string): string {
+  let result = html;
+
+  // Inline script tags: <script type="module" src="/pizzaz-2d2b.js"></script>
+  result = result.replace(
+    /<script([^>]*)\ssrc="([^"]+)"([^>]*)><\/script>/gi,
+    (_match, before, srcPath, after) => {
+      const fileName = path.basename(srcPath.split("?")[0]);
+      const filePath = path.join(ASSETS_DIR, fileName);
+      if (fs.existsSync(filePath) && fileName.endsWith(".js")) {
+        const content = fs.readFileSync(filePath, "utf8");
+        return `<script${before}${after} type="module">${content}</script>`;
+      }
+      return _match;
+    }
+  );
+
+  // Inline link tags: <link rel="stylesheet" href="/pizzaz-2d2b.css">
+  result = result.replace(
+    /<link([^>]*)\shref="([^"]+)"([^>]*)>/gi,
+    (_match, before, hrefPath, after) => {
+      const fileName = path.basename(hrefPath.split("?")[0]);
+      const filePath = path.join(ASSETS_DIR, fileName);
+      if (fs.existsSync(filePath) && fileName.endsWith(".css")) {
+        const content = fs.readFileSync(filePath, "utf8");
+        return `<style>${content}</style>`;
+      }
+      return _match;
+    }
+  );
+
+  return result;
 }
 
 function getWidgetOrigin(): string {
@@ -258,13 +288,13 @@ function createPizzazServer(): Server {
         throw new Error(`Unknown resource: ${request.params.uri}`);
       }
 
-      const rewrittenHtml = rewriteHtmlAssetUrls(widget.html, WIDGET_ORIGIN);
+      const inlinedHtml = inlineHtmlAssets(widget.html);
       return {
         contents: [
           {
             uri: widget.templateUri,
             mimeType: "text/html+skybridge",
-            text: rewrittenHtml,
+            text: inlinedHtml,
             _meta: widgetDescriptorMeta(widget),
           },
         ],
@@ -343,7 +373,13 @@ function serveStaticFile(
   res: ServerResponse,
   assetsDir: string
 ): boolean {
-  const pathname = url.pathname;
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(url.pathname);
+  } catch {
+    pathname = url.pathname;
+  }
+  pathname = pathname.replace(/\/+/g, "/").replace(/\/$/, "") || "/";
   if (pathname.includes("..") || pathname.startsWith("/mcp")) {
     return false;
   }
@@ -380,10 +416,19 @@ function serveStaticFile(
     }
   }
 
-  const safePath = pathname === "/" || pathname === "" ? "index.html" : pathname.replace(/^\//, "");
+  let safePath =
+    pathname === "/" || pathname === "" ? "index.html" : pathname.replace(/^\//, "");
+
+  // ChatGPT's sandbox proxy may forward with host-in-path, e.g. /pizzaz-mcp-eiil-onrender-com/pizzaz-2d2b.js
+  const hostAsPath = WIDGET_ORIGIN.replace(/^https?:\/\//, "").replace(/\./g, "-");
+  if (safePath.startsWith(`${hostAsPath}/`)) {
+    safePath = safePath.slice(hostAsPath.length + 1);
+  }
+
   const filePath = path.join(assetsDir, safePath);
 
   if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+    console.warn(`[assets] 404: ${pathname} -> ${filePath}`);
     return false;
   }
 
@@ -498,6 +543,27 @@ const httpServer = createServer(
       return;
     }
 
+    if (req.method === "GET" && url.pathname === "/__assets") {
+      try {
+        const files = fs.existsSync(ASSETS_DIR)
+          ? fs.readdirSync(ASSETS_DIR).filter((f) => !f.startsWith("."))
+          : [];
+        res.setHeader("Content-Type", "application/json");
+        res.writeHead(200);
+        res.end(
+          JSON.stringify({
+            assetsDir: ASSETS_DIR,
+            files: files.sort(),
+            widgetOrigin: WIDGET_ORIGIN,
+          })
+        );
+      } catch (e) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: String(e) }));
+      }
+      return;
+    }
+
     if (req.method === "GET") {
       if (serveStaticFile(url, res, ASSETS_DIR)) {
         return;
@@ -520,4 +586,5 @@ httpServer.listen(port, () => {
     `  Message post endpoint: POST http://localhost:${port}${postPath}?sessionId=...`
   );
   console.log(`  Widget domain: ${WIDGET_ORIGIN}`);
+  console.log(`  Asset mode: inlined (bypasses sandbox proxy)`);
 });
