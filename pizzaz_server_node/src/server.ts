@@ -74,6 +74,14 @@ function readWidgetHtml(componentName: string): string {
   return htmlContents;
 }
 
+/** Rewrite relative asset URLs to absolute URLs so the iframe can load from our domain. */
+function rewriteHtmlAssetUrls(html: string, baseOrigin: string): string {
+  const origin = baseOrigin.replace(/\/+$/, "");
+  return html
+    .replace(/\ssrc="\/([^"]+)"/g, ` src="${origin}/$1"`)
+    .replace(/\shref="\/([^"]+)"/g, ` href="${origin}/$1"`);
+}
+
 function getWidgetOrigin(): string {
   const raw =
     process.env.WIDGET_ORIGIN ??
@@ -92,6 +100,11 @@ const WIDGET_CSP_DOMAINS = {
     connect_domains: [WIDGET_ORIGIN],
     resource_domains: [WIDGET_ORIGIN],
   },
+  "ui.csp": {
+    connectDomains: [WIDGET_ORIGIN],
+    resourceDomains: [WIDGET_ORIGIN],
+  },
+  "ui.domain": WIDGET_ORIGIN,
 };
 
 function widgetDescriptorMeta(widget: PizzazWidget) {
@@ -192,9 +205,10 @@ const tools: Tool[] = widgets.map((widget) => ({
   _meta: widgetDescriptorMeta(widget),
   // To disable the approval prompt for the widgets
   annotations: {
+    readOnlyHint: true,
     destructiveHint: false,
     openWorldHint: false,
-    readOnlyHint: true,
+    idempotentHint: true,
   },
 }));
 
@@ -244,12 +258,13 @@ function createPizzazServer(): Server {
         throw new Error(`Unknown resource: ${request.params.uri}`);
       }
 
+      const rewrittenHtml = rewriteHtmlAssetUrls(widget.html, WIDGET_ORIGIN);
       return {
         contents: [
           {
             uri: widget.templateUri,
             mimeType: "text/html+skybridge",
-            text: widget.html,
+            text: rewrittenHtml,
             _meta: widgetDescriptorMeta(widget),
           },
         ],
